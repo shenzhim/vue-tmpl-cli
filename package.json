@@ -1,6 +1,6 @@
 {
   "name": "vue-tmpl-cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "bin": {
     "vue-tmpl": "bin/vue-tmpl"
   },
@@ -12,5 +12,9 @@
     "commander": "^2.11.0"
   },
   "homepage": "https://github.com/shenzhim/vue-tmpl-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shenzhim/vue-tmpl-cli.git"
+  },
   "license": "MIT"
 }
