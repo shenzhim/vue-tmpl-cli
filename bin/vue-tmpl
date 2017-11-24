@@ -1,7 +1,16 @@
 #! /usr/bin/env node
-
+var path = require('path')
+var ora = require('ora')
 var program = require('commander')
 var chalk = require('chalk')
+var home = require('user-home')
+var tildify = require('tildify')
+var inquirer = require('inquirer')
+var download = require('download-git-repo')
+var exists = require('fs').existsSync
+var rm = require('rimraf').sync
+var checkVersion = require('../lib/check-version')
+var generate = require('../lib/generate')
 
 
 /**
@@ -11,6 +20,7 @@ var chalk = require('chalk')
 program
   .usage('<template-name> [project-name]')
   .option('-c, --clone', 'use git clone')
+  .option('--offline', 'use cached template')
 
 /**
  * Help.
@@ -20,10 +30,7 @@ program.on('--help', function () {
   console.log('  Examples:')
   console.log()
   console.log(chalk.gray('    # create a new project with an official template'))
-  console.log('    $ vue init webpack my-project')
-  console.log()
-  console.log(chalk.gray('    # create a new project straight from a github template'))
-  console.log('    $ vue init username/repo my-project')
+  console.log('    $ vue-tmpl init webpack my-project')
   console.log()
 })
 
@@ -36,3 +43,65 @@ function help () {
   if (program.args.length < 1) return program.help()
 }
 help()
+
+
+var template = program.args[0]
+var rawName = program.args[1]
+var to = path.resolve(rawName || '.')
+
+var tmp = path.join(home, '.vue-tmpls', template.replace(/\//g, '-'))
+if (program.offline) {
+  console.log(`> Use cached template at ${chalk.yellow(tildify(tmp))}`)
+  template = tmp
+}
+
+if (exists(to)) {
+  inquirer.prompt([{
+    type: 'confirm',
+    message: 'Target directory exists. Continue?',
+    name: 'ok'
+  }], function (answers) {
+    if (answers.ok) {
+      run()
+    }
+  })
+} else {
+  run()
+}
+
+function run () {
+  if (/^[./]|(^[a-zA-Z]:)/.test(template)) {
+    // local
+    var templatePath = getTemplatePath(template)
+    if (exists(templatePath)) {
+
+      generate(name, templatePath, to, function (err) {
+        if (err) logger.fatal(err)
+        console.log()
+        logger.success('Generated "%s".', name)
+      })
+    } else {
+      logger.fatal('Local template "%s" not found.', template)
+    }
+  } else {
+    checkVersion(function () {
+        downloadAndGenerate(template)
+    })
+  }
+}
+
+function downloadAndGenerate (template) {
+  var spinner = ora('downloading template')
+  spinner.start()
+  // Remove if local template exists
+  if (exists(tmp)) rm(tmp)
+  download(template, tmp, function (err) {
+    spinner.stop()
+    if (err) logger.fatal('Failed to download repo ' + template + ': ' + err.message.trim())
+    generate(name, tmp, to, function (err) {
+      if (err) logger.fatal(err)
+      console.log()
+      logger.success('Generated "%s".', name)
+    })
+  })
+}
