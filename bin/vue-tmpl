@@ -9,6 +9,7 @@ var inquirer = require('inquirer')
 var download = require('download-git-repo')
 var exists = require('fs').existsSync
 var rm = require('rimraf').sync
+var logger = require('../lib/logger')
 var checkVersion = require('../lib/check-version')
 var generate = require('../lib/generate')
 
@@ -45,9 +46,10 @@ function help () {
 help()
 
 
-var template = program.args[0]
-var rawName = program.args[1]
+var template = program.args[1]
+var rawName = program.args[2]
 var to = path.resolve(rawName || '.')
+
 
 var tmp = path.join(home, '.vue-tmpls', template.replace(/\//g, '-'))
 if (program.offline) {
@@ -72,13 +74,14 @@ if (exists(to)) {
 function run () {
   if (/^[./]|(^[a-zA-Z]:)/.test(template)) {
     // local
-    var templatePath = getTemplatePath(template)
+
+    var templatePath = path.isAbsolute(template) ? template : path.normalize(path.join(process.cwd(), template))
     if (exists(templatePath)) {
 
-      generate(name, templatePath, to, function (err) {
+      generate(rawName, templatePath, to, function (err) {
         if (err) logger.fatal(err)
         console.log()
-        logger.success('Generated "%s".', name)
+        logger.success('Generated "%s".', rawName)
       })
     } else {
       logger.fatal('Local template "%s" not found.', template)
@@ -95,13 +98,14 @@ function downloadAndGenerate (template) {
   spinner.start()
   // Remove if local template exists
   if (exists(tmp)) rm(tmp)
+
   download(template, tmp, function (err) {
     spinner.stop()
     if (err) logger.fatal('Failed to download repo ' + template + ': ' + err.message.trim())
-    generate(name, tmp, to, function (err) {
+    generate(rawName, tmp, to, function (err) {
       if (err) logger.fatal(err)
       console.log()
-      logger.success('Generated "%s".', name)
+      logger.success('Generated "%s".', rawName)
     })
   })
 }
